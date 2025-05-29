@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-pulse-soft {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+  
+  .animate-progress-indeterminate {
+    animation: progress-indeterminate 1.5s infinite linear;
+    background-size: 200% 100%;
+    background-image: linear-gradient(
+      to right,
+      transparent 0%,
+      theme('colors.indigo.600') 50%,
+      transparent 100%
+    );
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
