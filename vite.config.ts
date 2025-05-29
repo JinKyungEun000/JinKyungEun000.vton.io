@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  base: '/',          // ⭐️ 레포 이름으로 수정
+  base: '/JinKyungEun000.vton.io',          // ⭐️ 레포 이름으로 수정
   plugins: [
     react(),
     VitePWA({
@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'Virtual Try-On',
         short_name: 'Try-On',
         description: 'AI 기술로 내 사진에 가상으로 옷을 입혀보세요',
-        start_url: '/',      // ⭐️ 동일한 베이스 경로
+        start_url: '/JinKyungEun000.vton.io',      // ⭐️ 동일한 베이스 경로
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#4f46e5',
