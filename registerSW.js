@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/JinKyungEun000.vton.io/sw.js', { scope: '/JinKyungEun000.vton.io/' })})}
