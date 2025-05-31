@@ -4,7 +4,9 @@
   "description": "AI 기술로 내 사진에 가상으로 옷을 입혀보세요",
   "lang": "en",
 
-  "id": "jinkyungeun",               
+  
+  "id": "/JinKyungEun000.vton.io/" , 
+
   "start_url": "/JinKyungEun000.vton.io/",
   "scope": "/JinKyungEun000.vton.io/",
   "display": "standalone",
