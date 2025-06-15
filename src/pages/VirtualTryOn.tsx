@@ -1,189 +1,204 @@
 import React, { useState } from 'react';
-import Stepper from '../components/Stepper';
-import UploadArea from '../components/UploadArea';
-import LoadingAnimation from '../components/LoadingAnimation';
-import ResultView from '../components/ResultView';
-import Button from '../components/Button';
+import Stepper               from '../components/Stepper';
+import UploadArea            from '../components/UploadArea';
+import LoadingAnimation      from '../components/LoadingAnimation';
+import ResultView            from '../components/ResultView';
+import Button                from '../components/Button';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { uploadImage, fitImages }       from '../api';          // { uploadUrl, resultUrl? }
 
 const STEPS = ['내 사진 업로드', '옷 이미지 업로드', '가상 피팅', '결과 확인'];
 
 const VirtualTryOn: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [userPhoto, setUserPhoto] = useState<File | null>(null);
-  const [userPhotoUrl, setUserPhotoUrl] = useState<string | null>(null);
-  const [clothingPhoto, setClothingPhoto] = useState<File | null>(null);
-  const [clothingPhotoUrl, setClothingPhotoUrl] = useState<string | null>(null);
+  /* ────────── 상태 ────────── */
+  const [currentStep, setCurrentStep]           = useState(0);
+
+  // 사용자 사진 (로컬·서버)
+  const [userPhoto,             setUserPhoto]             = useState<File | null>(null);
+  const [userPhotoUrl,          setUserPhotoUrl]          = useState<string | null>(null); // blob
+  const [userPhotoUploadUrl,    setUserPhotoUploadUrl]    = useState<string | null>(null); // 서버 uploads URL
+
+  // 의상 사진 (로컬·서버)
+  const [clothingPhoto,         setClothingPhoto]         = useState<File | null>(null);
+  const [clothingPhotoUrl,      setClothingPhotoUrl]      = useState<string | null>(null);
+  const [clothingPhotoUploadUrl,setClothingPhotoUploadUrl]= useState<string | null>(null);
+
+  // 진행 및 결과
   const [processProgress, setProcessProgress] = useState(0);
-  const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
-  
-  // Handle user photo selection
-  const handleUserPhotoSelected = (file: File) => {
+  const [resultImageUrl, setResultImageUrl]   = useState<string | null>(null);
+
+  /* ────────── 업로드 핸들러 ────────── */
+  const handleUserPhotoSelected = async (file: File) => {
     setUserPhoto(file);
     setUserPhotoUrl(URL.createObjectURL(file));
+
+    try {
+      const { uploadUrl } = await uploadImage(file);   // Node → Python 저장 후 URL
+      setUserPhotoUploadUrl(uploadUrl);
+      console.log('사용자 사진 서버 URL:', uploadUrl);
+    } catch (err) {
+      console.error(err);
+      alert('사용자 사진 업로드 실패');
+    }
   };
-  
-  // Handle clothing photo selection
-  const handleClothingPhotoSelected = (file: File) => {
+
+  const handleClothingPhotoSelected = async (file: File) => {
     setClothingPhoto(file);
     setClothingPhotoUrl(URL.createObjectURL(file));
-  };
-  
-  // Clear user photo
-  const clearUserPhoto = () => {
-    if (userPhotoUrl) {
-      URL.revokeObjectURL(userPhotoUrl);
+
+    try {
+      const { uploadUrl } = await uploadImage(file);
+      setClothingPhotoUploadUrl(uploadUrl);
+      console.log('의상 사진 서버 URL:', uploadUrl);
+    } catch (err) {
+      console.error(err);
+      alert('의상 사진 업로드 실패');
     }
+  };
+
+  /* ────────── 클리어 함수 ────────── */
+  const clearUserPhoto = () => {
+    if (userPhotoUrl) URL.revokeObjectURL(userPhotoUrl);
     setUserPhoto(null);
     setUserPhotoUrl(null);
+    setUserPhotoUploadUrl(null);
   };
-  
-  // Clear clothing photo
   const clearClothingPhoto = () => {
-    if (clothingPhotoUrl) {
-      URL.revokeObjectURL(clothingPhotoUrl);
-    }
+    if (clothingPhotoUrl) URL.revokeObjectURL(clothingPhotoUrl);
     setClothingPhoto(null);
     setClothingPhotoUrl(null);
+    setClothingPhotoUploadUrl(null);
   };
-  
-  // Start the processing
-  const startProcessing = () => {
-    setCurrentStep(2);
-    
-    // Simulate processing with progress updates
+
+  /* ────────── 가상 피팅 단계 ────────── */
+  const startProcessing = async () => {
+    setCurrentStep(2);      // 가상 피팅 화면
+    setProcessProgress(0);
+
+    /* --- 진행바 애니메이션 ---------------------------------- */
     let progress = 0;
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       progress += 5;
       setProcessProgress(progress);
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          // In a real app, this would be the URL of the processed image from the backend
-          // For demo, we'll just use a sample image
-          setResultImageUrl('https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg');
-          setCurrentStep(3);
-        }, 500);
-      }
-    }, 300);
+      if (progress >= 100) clearInterval(timer);
+    }, 200);
+
+    try {
+      /* --- 백엔드 처리: 두 이미지 URL을 Python 서비스까지 전달 ---- */
+      const { resultUrl } = await fitImages(
+        userPhotoUploadUrl as string,
+        clothingPhotoUploadUrl as string,
+      );
+
+      /* --- 완료 처리 ---------------------------------------- */
+      clearInterval(timer);          // 혹시 100 미만에서 끝났다면 정리
+      setProcessProgress(100);
+      setResultImageUrl(resultUrl);  // 최종 합성 이미지 표시
+      setCurrentStep(3);
+    } catch (err) {
+      console.error(err);
+      clearInterval(timer);
+      alert('가상 피팅 과정에서 오류가 발생했습니다');
+      startOver();
+    }
   };
-  
-  // Try with another clothing
+
+  /* ────────── 단계 이동 ────────── */
+  const goToNextStep = () => {
+    if (currentStep === 0 && userPhoto)  setCurrentStep(1);
+    else if (currentStep === 1 && clothingPhoto) startProcessing();
+  };
+  const goToPreviousStep = () => {
+    if (currentStep > 0) setCurrentStep((p) => p - 1);
+  };
+
+  /* ────────── 재시도 및 초기화 ────────── */
   const tryAnotherClothing = () => {
     clearClothingPhoto();
     setCurrentStep(1);
   };
-  
-  // Start over from the beginning
   const startOver = () => {
     clearUserPhoto();
     clearClothingPhoto();
     setResultImageUrl(null);
+    setProcessProgress(0);
     setCurrentStep(0);
   };
-  
-  // Function to handle next step
-  const goToNextStep = () => {
-    if (currentStep < STEPS.length - 1) {
-      if (currentStep === 1) {
-        startProcessing();
-      } else {
-        setCurrentStep(prev => prev + 1);
-      }
-    }
-  };
-  
-  // Function to handle previous step
-  const goToPreviousStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
-  
+
+  /* ────────── UI ────────── */
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <Stepper currentStep={currentStep} steps={STEPS} />
-      
+
       <div className="mt-8 mb-12">
         {currentStep === 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">내 사진 업로드</h2>
-            <p className="text-gray-600 mb-6">
-              가상 피팅을 위해 전신이 나온 사진을 업로드해주세요.
-              선명한 전신 사진일수록 정확한 결과를 얻을 수 있습니다.
-            </p>
-            
+          <>
+            <h2 className="text-2xl font-bold mb-4">내 사진 업로드</h2>
             <UploadArea
               title="사진 업로드"
-              description="정면을 바라보는 전신 사진을 올려주세요"
+              description="전신이 나온 선명한 사진을 올려주세요"
               onFileSelected={handleUserPhotoSelected}
               previewUrl={userPhotoUrl}
               onClearFile={clearUserPhoto}
             />
-          </div>
+          </>
         )}
-        
+
         {currentStep === 1 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">옷 이미지 업로드</h2>
-            <p className="text-gray-600 mb-6">
-              입어보고 싶은 옷의 이미지를 업로드해주세요.
-              흰 배경의 깔끔한 이미지일수록 결과가 자연스럽습니다.
-            </p>
-            
+          <>
+            <h2 className="text-2xl font-bold mb-4">옷 이미지 업로드</h2>
             <UploadArea
               title="의상 업로드"
-              description="가상으로 입어볼 옷 이미지를 올려주세요"
+              description="입어볼 옷 이미지를 올려주세요"
               onFileSelected={handleClothingPhotoSelected}
               previewUrl={clothingPhotoUrl}
               onClearFile={clearClothingPhoto}
             />
-          </div>
+          </>
         )}
-        
+
         {currentStep === 2 && (
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-8 text-gray-800">가상 피팅 진행중</h2>
-            <LoadingAnimation 
+            <h2 className="text-2xl font-bold mb-8">가상 피팅 진행중</h2>
+            <LoadingAnimation
               message="AI가 이미지를 합성하고 있습니다..."
               progress={processProgress}
             />
           </div>
         )}
-        
+
         {currentStep === 3 && resultImageUrl && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">결과 확인</h2>
+          <>
+            <h2 className="text-2xl font-bold mb-4">결과 확인</h2>
             <ResultView
               resultImageUrl={resultImageUrl}
               onTryAnother={tryAnotherClothing}
               onStartOver={startOver}
             />
-          </div>
+          </>
         )}
       </div>
-      
+
+      {/* 하단 네비게이션 */}
       {(currentStep === 0 || currentStep === 1) && (
         <div className="flex justify-between">
           {currentStep > 0 ? (
-            <Button
-              variant="outline"
-              icon={<ArrowLeft size={16} />}
-              onClick={goToPreviousStep}
-            >
+            <Button variant="outline" onClick={goToPreviousStep} icon={<ArrowLeft size={16} />}>
               이전
             </Button>
           ) : (
-            <div></div>
+            <div />
           )}
-          
+
           <Button
             variant="primary"
+            onClick={goToNextStep}
+            disabled={
+              (currentStep === 0 && !userPhoto) ||
+              (currentStep === 1 && !clothingPhoto)
+            }
             icon={<ArrowRight size={16} />}
             iconPosition="right"
-            disabled={(currentStep === 0 && !userPhoto) || (currentStep === 1 && !clothingPhoto)}
-            onClick={goToNextStep}
           >
             다음
           </Button>

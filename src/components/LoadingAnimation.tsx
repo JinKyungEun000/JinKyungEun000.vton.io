@@ -8,6 +8,8 @@ interface LoadingAnimationProps {
 const LoadingAnimation: React.FC<LoadingAnimationProps> = ({ 
   message = "이미지를 생성하고 있습니다...", 
   progress 
+
+  
 }) => {
   return (
     <div className="flex flex-col items-center justify-center py-10">
